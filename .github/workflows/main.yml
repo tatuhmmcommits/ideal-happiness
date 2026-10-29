@@ -1,0 +1,176 @@
+# Builds the mod jar on GitHub's servers, so no local Java setup is needed.
+#
+#  * Every push / manual run  -> the jar is attached to the run as an artifact (Actions tab).
+#  * Pushing a tag like v1.0.0 -> the jar is also attached to a GitHub Release.
+#  * A second, optional job starts a dedicated server with the mod and uploads its log, so a crash at start-up
+#    (a bad registry entry, a mixin that does not apply) can be read without running the game. That job never
+#    fails the workflow: the jar from the first job is what counts.
+#
+# The project folder is found automatically: it works whether you uploaded the *contents* of the zip to the
+# repository root, or the whole folder (so that gradlew sits one level down).
+
+name: build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+
+      - name: locate the project (the folder that holds gradlew and build.gradle)
+        id: locate
+        shell: bash
+        run: |
+          set -eu
+          dir=""
+          if [ -f ./gradlew ] && [ -f ./build.gradle ]; then
+            dir="."
+          else
+            for candidate in $(find . -maxdepth 4 -name gradlew -type f -not -path './.git/*' | sort); do
+              folder="$(dirname "$candidate")"
+              if [ -f "$folder/build.gradle" ]; then
+                dir="$folder"
+                break
+              fi
+            done
+          fi
+          if [ -z "$dir" ]; then
+            echo "::error::Could not find gradlew and build.gradle in this repository. Upload the CONTENTS of the zip (src, gradle, gradlew, build.gradle, .github ...) to the repository."
+            echo "Files found (first 120):"
+            find . -maxdepth 4 -not -path './.git/*' | sort | head -120
+            exit 1
+          fi
+          echo "Project folder: $dir"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+
+      - name: make gradle wrapper executable
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: chmod +x ./gradlew
+
+      - name: build
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: ./gradlew build --stacktrace
+
+      - name: list the jars
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: ls -la build/libs
+
+      - name: capture build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: charter-jar
+          if-no-files-found: error
+          path: |
+            ${{ steps.locate.outputs.dir }}/build/libs/*.jar
+            !${{ steps.locate.outputs.dir }}/build/libs/*-sources.jar
+            !${{ steps.locate.outputs.dir }}/build/libs/*-dev.jar
+
+      - name: attach jar to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.locate.outputs.dir }}/build/libs/*.jar
+            !${{ steps.locate.outputs.dir }}/build/libs/*-sources.jar
+            !${{ steps.locate.outputs.dir }}/build/libs/*-dev.jar
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+
+      - name: locate the project
+        id: locate
+        shell: bash
+        run: |
+          set -eu
+          dir=""
+          if [ -f ./gradlew ] && [ -f ./build.gradle ]; then
+            dir="."
+          else
+            for candidate in $(find . -maxdepth 4 -name gradlew -type f -not -path './.git/*' | sort); do
+              folder="$(dirname "$candidate")"
+              if [ -f "$folder/build.gradle" ]; then
+                dir="$folder"
+                break
+              fi
+            done
+          fi
+          if [ -z "$dir" ]; then
+            echo "::error::project not found"
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+
+      - name: start a dedicated server with the mod
+        working-directory: ${{ steps.locate.outputs.dir }}
+        shell: bash
+        run: |
+          set -u
+          chmod +x ./gradlew
+          mkdir -p run
+          echo "eula=true" > run/eula.txt
+          printf 'online-mode=false\nmax-tick-time=-1\nview-distance=4\nsimulation-distance=4\n' > run/server.properties
+          ./gradlew runServer --console=plain > run/gradle-output.log 2>&1 &
+          gradle_pid=$!
+          started=0
+          for i in $(seq 1 480); do
+            if [ -f run/logs/latest.log ] && grep -q 'Done (' run/logs/latest.log; then
+              started=1
+              break
+            fi
+            if ! kill -0 "$gradle_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          # give the first ticks of the world a few seconds to run
+          if [ "$started" = "1" ]; then sleep 20; fi
+          pkill -f 'net.fabricmc.loader.impl.launch.knot.KnotServer' || true
+          sleep 5
+          kill "$gradle_pid" 2>/dev/null || true
+          echo "---- Charter lines of the server log ----"
+          grep -i 'charter' run/logs/latest.log || true
+          echo "---- problems ----"
+          grep -iE 'Exception|ERROR|mixin.*(fail|error)|InvalidInjection' run/logs/latest.log || true
+          if [ "$started" != "1" ]; then
+            echo "::warning::The server did not reach 'Done' (see the server-log artifact)."
+            exit 1
+          fi
+
+      - name: upload server log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-log
+          if-no-files-found: ignore
+          path: |
+            ${{ steps.locate.outputs.dir }}/run/logs/latest.log
+            ${{ steps.locate.outputs.dir }}/run/gradle-output.log
