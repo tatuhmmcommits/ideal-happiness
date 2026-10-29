@@ -1,0 +1,15 @@
+{
+	"parent": "charter:item/dusk_epitaph",
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [24.84, -129.47, 69.19],
+			"translation": [1.893, 6.586, 2.57],
+			"scale": [1.19, 1.19, 1.19]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [24.84, 129.47, -69.19],
+			"translation": [1.893, 6.586, 2.57],
+			"scale": [1.19, 1.19, 1.19]
+		}
+	}
+}

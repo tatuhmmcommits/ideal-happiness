@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "FFF",
+    "FCF",
+    "FFF"
+  ],
+  "key": {
+    "F": {
+      "item": "charter:lesser_divinity_fragment"
+    },
+    "C": {
+      "item": "charter:signed_contract"
+    }
+  },
+  "result": {
+    "item": "charter:fractured_lesser_divinity",
+    "count": 1
+  }
+}

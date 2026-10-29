@@ -1,0 +1,46 @@
+{
+	"parent": "minecraft:item/handheld",
+	"textures": {
+		"layer0": "charter:item/dusk_epitaph"
+	},
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [0, -90, 35],
+			"translation": [0.0, 6.679, 3.278],
+			"scale": [1.19, 1.19, 1.19]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [0, 90, -35],
+			"translation": [0.0, 6.679, 3.278],
+			"scale": [1.19, 1.19, 1.19]
+		},
+		"firstperson_righthand": {
+			"rotation": [0, -90, 25],
+			"translation": [1.13, 4.754, 2.028],
+			"scale": [0.884, 0.884, 0.884]
+		},
+		"firstperson_lefthand": {
+			"rotation": [0, 90, -25],
+			"translation": [1.13, 4.754, 2.028],
+			"scale": [0.884, 0.884, 0.884]
+		},
+		"ground": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 3, 0],
+			"scale": [0.7, 0.7, 0.7]
+		},
+		"fixed": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 0, 0],
+			"scale": [0.9, 0.9, 0.9]
+		}
+	},
+	"overrides": [
+		{
+			"predicate": {
+				"charter:two_handed": 1
+			},
+			"model": "charter:item/dusk_epitaph_twohanded"
+		}
+	]
+}

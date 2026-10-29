@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "charter:block/divine_dominance"
+    },
+    "facing=east": {
+      "model": "charter:block/divine_dominance",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "charter:block/divine_dominance",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "charter:block/divine_dominance",
+      "y": 270
+    }
+  }
+}

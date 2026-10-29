@@ -1,0 +1,19 @@
+{
+	"required": false,
+	"package": "net.charter.client.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"client": [
+		"ArmorFeatureRendererMixin",
+		"BipedEntityModelMixin",
+		"HeldItemFeatureRendererMixin",
+		"HeldItemRendererMixin",
+		"LivingEntityRendererMixin",
+		"PlayerEntityRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
